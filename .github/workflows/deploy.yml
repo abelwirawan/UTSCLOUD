@@ -2,36 +2,51 @@ name: Deploy Backend UTSCLOUD
 
 on:
   push:
-    branches: [main] # Jalankan setiap push ke branch main
+    branches:
+      - main # Workflow akan berjalan setiap kali kamu push ke branch main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          # Menggunakan Node.js 24 untuk menghindari peringatan deprecation
+          env:
+            FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-      - name: Deploy to Private Server via Nginx Proxy
+      - name: Deploy to Private Backend via Nginx Proxy
         uses: appleboy/ssh-action@v1.0.3
         with:
+          # 1. Konfigurasi Target Akhir (Server Backend)
           host: ${{ secrets.BACKEND_HOST }}
           username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          # Jembatan (Nginx)
+          key: ${{ secrets.BACKEND_PRIVATE_KEY }} # Private Key khusus Backend
+          port: 22
+
+          # 2. Konfigurasi Jembatan (Server Nginx / Jump Host)
           proxy_host: ${{ secrets.NGINX_HOST }}
           proxy_username: ubuntu
-          proxy_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          proxy_key: ${{ secrets.NGINX_PRIVATE_KEY }} # Private Key khusus Nginx
+          proxy_port: 22
+
+          # 3. Instruksi yang dijalankan di Server Backend
           script: |
+            # Masuk ke folder proyek
             cd ~/health/UTSCLOUD
-            # Update source code
+
+            # Tarik update terbaru dari GitHub
             git pull origin main
 
-            # Update file .env dari GitHub Secrets
+            # Update file .env dengan kredensial terbaru (RDS, S3, AI)
             echo "${{ secrets.ENV_CONTENT }}" > .env
 
-            # Rebuild dan Restart Docker
+            # Bangun ulang dan jalankan container Docker
+            # Menggunakan sudo karena biasanya docker butuh akses root
             sudo docker-compose down
             sudo docker-compose up -d --build
 
-            # Bersihkan image lama yang tidak terpakai
+            # Membersihkan image lama agar disk server tidak penuh
             sudo docker image prune -f
