@@ -9,6 +9,8 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const { S3Client } = require('@aws-sdk/client-s3');
 const multerS3 = require('multer-s3');
+const fetch = require('cross-fetch');
+globalThis.fetch = fetch;
 
 dotenv.config();
 
