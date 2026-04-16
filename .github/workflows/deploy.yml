@@ -32,13 +32,22 @@ jobs:
           proxy_port: 22
 
           # 3. Instruksi yang dijalankan di Server Backend
-          script: |
-            cd ~/health/UTSCLOUD
-            git pull origin main
+script: |
+  cd ~/health/UTSCLOUD
 
-            # Pastikan variabel ENV_CONTENT di GitHub Secrets sudah berisi data .env lengkap
-            echo "${{ secrets.ENV_CONTENT }}" > .env
+  # 1. Ambil semua perubahan terbaru dari GitHub tanpa merge
+  git fetch --all
 
-            sudo docker-compose down
-            sudo docker-compose up -d --build
-            sudo docker image prune -f
+  # 2. PAKSA kode di server sama dengan branch main (menghapus editan lokal di server)
+  git reset --hard origin/main
+
+  # 3. Perbaiki izin folder agar bisa menulis file .env
+  sudo chown -R ubuntu:ubuntu ~/health/UTSCLOUD
+
+  # 4. Update file .env
+  echo "${{ secrets.ENV_CONTENT }}" > .env
+
+  # 5. Jalankan Docker
+  sudo docker-compose down
+  sudo docker-compose up -d --build
+  sudo docker image prune -f
